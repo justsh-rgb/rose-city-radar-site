@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rose City Radar · Tyler, TX</title>
+<meta name="description" content="Everything worth doing around Tyler, Texas. Dated events and standing favorites from dozens of local sources, refreshed weekly, every listing linked to its official page.">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b100e'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23e8415e' stroke-width='1.5' opacity='.55'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23e8415e' stroke-width='1.5' opacity='.8'/%3E%3Cpath d='M16 16 L16 4 A12 12 0 0 1 26.4 10z' fill='%23e8415e' opacity='.9'/%3E%3Ccircle cx='16' cy='16' r='2.2' fill='%23e8415e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b100e;
+    --bg-2: #111915;
+    --bg-3: #17221c;
+    --line: rgba(243, 240, 233, .09);
+    --ink: #f3f0e9;
+    --ink-2: #a9b6af;
+    --ink-3: #7d8c83;
+    --rose: #e8415e;
+    --rose-dim: rgba(232, 65, 94, .14);
+    --rose-hover: #ff5f7a;
+    --radar: 123, 224, 163;   /* radar green: sweep, pings, live dots */
+    --c-pleasure: #e0a458;
+    --c-development: #6fa8e8;
+    --c-networking: #ab90e3;
+    --c-family: #66c08f;
+    --c-kids: #e884b3;
+    --font-d: "Fraunces", Georgia, serif;
+    --font-b: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --rc: 12px;
+    --rctl: 6px;
+    --nav-h: 64px;
+  }
+  .sweep-stamp .dot, .soon .dot { background: rgb(var(--radar)); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 16px/1.55 var(--font-b);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--rose); color: #16090b; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; border-radius: 2px; }
+  img { display: block; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  section { scroll-margin-top: calc(var(--nav-h) + 16px); }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: fixed; inset: 0 0 auto 0; z-index: 50; height: var(--nav-h);
+    display: flex; align-items: center;
+    transition: background .3s, border-color .3s, backdrop-filter .3s;
+    border-bottom: 1px solid transparent;
+  }
+  nav.scrolled {
+    background: rgba(11, 16, 14, .78);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-bottom-color: var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 32px; width: 100%; }
+  .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .mark svg { width: 26px; height: 26px; }
+  .mark b {
+    font: 600 13px/1 var(--font-b); letter-spacing: .14em; white-space: nowrap;
+  }
+  .nav-links { display: flex; gap: 24px; margin-left: auto; }
+  .nav-links a {
+    font: 600 13px/1 var(--font-b); letter-spacing: .02em;
+    color: var(--ink-2); text-decoration: none; padding: 8px 0;
+  }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    font: 600 13px/1 var(--font-b); color: var(--rose); text-decoration: none;
+    border: 1px solid rgba(232, 65, 94, .45); border-radius: 999px;
+    padding: 9px 16px; white-space: nowrap; transition: background .2s, color .2s;
+  }
+  .nav-cta:hover { background: var(--rose); color: #16090b; }
+  @media (max-width: 760px) { .nav-links { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative; min-height: 100svh;
+    display: flex; flex-direction: column; justify-content: center;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: -12% 0; z-index: 0;
+    background: #182019 center / cover no-repeat;
+    will-change: transform;
+  }
+  .hero-scrim {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(90deg, rgba(11,16,14,.92) 0%, rgba(11,16,14,.72) 44%, rgba(11,16,14,.42) 100%),
+      linear-gradient(0deg, var(--bg) 0%, rgba(11,16,14,.25) 28%, rgba(11,16,14,.45) 100%);
+  }
+  #radar { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  .hero-content { position: relative; z-index: 3; width: 100%; padding-top: 96px; padding-bottom: 72px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 600 12px/1 var(--font-b); letter-spacing: .18em; color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px;
+    background: rgba(11, 16, 14, .45);
+  }
+  .hero h1 {
+    font: 600 clamp(42px, 7vw, 82px)/1.04 var(--font-d);
+    letter-spacing: -.015em; max-width: 13ch; margin: 28px 0 20px;
+  }
+  .hero h1 em { font-style: normal; color: var(--rose); }
+  .hero-sub { font-size: 17px; color: var(--ink-2); max-width: 52ch; margin-bottom: 36px; }
+  .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 56px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 600 15px/1 var(--font-b); text-decoration: none;
+    border-radius: 999px; padding: 15px 24px; transition: transform .2s, background .2s, border-color .2s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--rose); color: #16090b; }
+  .btn-primary:hover { background: var(--rose-hover); }
+  .btn-ghost { border: 1px solid var(--line); color: var(--ink); background: rgba(11,16,14,.35); }
+  .btn-ghost:hover { border-color: rgba(243,240,233,.3); }
+  .hero-stats { display: flex; flex-wrap: wrap; gap: 0 48px; row-gap: 24px; }
+  .stat .n { font: 600 clamp(26px, 3vw, 34px)/1.1 var(--font-d); font-variant-numeric: tabular-nums; }
+  .stat .l { font: 600 12px/1.4 var(--font-b); letter-spacing: .1em; color: var(--ink-3); margin-top: 6px; }
+  .sweep-stamp {
+    position: absolute; z-index: 3; right: 24px; bottom: 24px;
+    display: flex; align-items: center; gap: 8px;
+    font: 600 11px/1 var(--font-b); letter-spacing: .12em; color: var(--ink-3);
+  }
+  .sweep-stamp .dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--radar)); animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  .hero-imgnote {
+    position: absolute; z-index: 3; left: 24px; bottom: 24px;
+    font: 400 11px/1.4 var(--font-b); color: var(--ink-3); max-width: 40ch;
+  }
+  .hero-imgnote a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
+  @media (max-width: 760px) {
+    .hero-imgnote { display: none; }
+    .sweep-stamp { right: auto; left: 24px; }
+  }
+
+  /* ---------- sections ---------- */
+  .section { padding: 112px 0 0; }
+  .section-head { margin-bottom: 40px; }
+  .section-head h2 {
+    font: 600 clamp(30px, 4vw, 46px)/1.12 var(--font-d); letter-spacing: -.01em; max-width: 24ch;
+  }
+  .section-head p { color: var(--ink-2); margin-top: 12px; max-width: 60ch; }
+  .kicker { font: 600 12px/1 var(--font-b); letter-spacing: .18em; color: var(--rose); margin-bottom: 16px; }
+
+  /* ---------- weekend rails ---------- */
+  .day { margin-bottom: 40px; }
+  .day-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+  .day-head h3 { font: 600 20px/1 var(--font-b); }
+  .day-head .count { font: 600 13px/1 var(--font-b); color: var(--ink-3); }
+  .rail-clip { margin: 0 -24px; position: relative; }
+  .rail {
+    display: flex; gap: 16px; overflow-x: auto; padding: 4px 24px 16px;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail > * { scroll-snap-align: start; flex: 0 0 290px; }
+  .more-card {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    border: 1px dashed var(--line); border-radius: var(--rc);
+    color: var(--ink-2); font: 600 14px/1.5 var(--font-b);
+    text-decoration: none; padding: 24px; transition: border-color .2s, color .2s;
+  }
+  .more-card:hover { border-color: rgba(232,65,94,.5); color: var(--ink); }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--rc);
+    overflow: hidden; display: flex; flex-direction: column;
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .card:hover { transform: translateY(-4px); border-color: rgba(232, 65, 94, .35); }
+  .card-media { position: relative; aspect-ratio: 16/9; background: var(--bg-3); overflow: hidden; }
+  .card-media .ph { width: 100%; height: 100%; object-fit: cover; transition: transform .45s ease; }
+  .card:hover .card-media .ph { transform: scale(1.04); }
+  .ph-wrap { position: absolute; inset: 0; }
+  .ph-badge, .lane-badge {
+    position: absolute; right: 10px; bottom: 10px; z-index: 2;
+    font: 600 10px/1 var(--font-b); letter-spacing: .06em;
+    color: rgba(243,240,233,.85); background: rgba(11,16,14,.62);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    border-radius: 4px; padding: 5px 7px;
+  }
+  .date-chip {
+    position: absolute; left: 10px; top: 10px; z-index: 2;
+    font: 600 11px/1 var(--font-b); letter-spacing: .08em;
+    background: rgba(11,16,14,.72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px;
+  }
+  .card-body { padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .card-meta { font: 600 12px/1.4 var(--font-b); color: var(--ink-3); letter-spacing: .02em; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .card-name { font: 600 17px/1.3 var(--font-b); }
+  .card-name a { text-decoration: none; }
+  .card-name a:hover { color: var(--rose); }
+  .card-desc {
+    font-size: 14px; color: var(--ink-2);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-foot { margin-top: auto; padding-top: 10px; font: 400 13px/1.4 var(--font-b); color: var(--ink-3); display: flex; justify-content: space-between; gap: 12px; }
+  .card-foot .go { color: var(--ink-2); font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .card-foot .go:hover { color: var(--rose); }
+  .ph-credit {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    font: 400 9.5px/1.35 var(--font-b); color: rgba(243,240,233,.75);
+    background: linear-gradient(0deg, rgba(11,16,14,.82), rgba(11,16,14,0));
+    padding: 18px 10px 7px;
+  }
+  .ph-credit a { color: inherit; }
+
+  /* ---------- ongoing strip ---------- */
+  .ongoing { margin-top: 8px; border-top: 1px solid var(--line); }
+  .ongoing h3 { font: 600 14px/1 var(--font-b); letter-spacing: .1em; color: var(--ink-3); padding: 24px 0 8px; }
+  .ongoing a {
+    display: flex; gap: 16px; align-items: baseline; justify-content: space-between;
+    padding: 13px 0; border-bottom: 1px solid var(--line);
+    text-decoration: none; transition: padding-left .2s;
+  }
+  .ongoing a:hover { padding-left: 8px; }
+  .ongoing a:hover .o-name { color: var(--rose); }
+  .o-name { font: 600 15px/1.4 var(--font-b); }
+  .o-meta { font: 400 13px/1.4 var(--font-b); color: var(--ink-3); text-align: right; white-space: nowrap; }
+  @media (max-width: 600px) { .o-meta { display: none; } }
+
+  /* ---------- lanes ---------- */
+  .lanes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .lane {
+    position: relative; border-radius: var(--rc); overflow: hidden; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg-2);
+    aspect-ratio: 3/4; text-align: left; padding: 0; display: block; width: 100%;
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .lane:hover { transform: translateY(-4px); border-color: rgba(243,240,233,.28); }
+  .lane img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .8; transition: transform .5s ease, opacity .3s; }
+  .lane:hover img { transform: scale(1.05); opacity: .95; }
+  .lane-scrim { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(11,16,14,.92) 0%, rgba(11,16,14,.25) 55%, rgba(11,16,14,.15) 100%); }
+  .lane-body { position: absolute; left: 16px; right: 16px; bottom: 16px; }
+  .lane-body .cat-dot { width: 10px; height: 10px; margin-bottom: 10px; }
+  .lane-body h3 { font: 600 21px/1.1 var(--font-d); color: var(--ink); text-transform: capitalize; }
+  .lane-body .lc { font: 600 12px/1.5 var(--font-b); color: var(--ink-2); margin-top: 6px; }
+  @media (max-width: 980px) { .lanes { grid-template-columns: repeat(6, 1fr); } .lane { grid-column: span 2; aspect-ratio: 3/4; } .lane:nth-child(4) { grid-column: 1 / span 3; aspect-ratio: 16/8; } .lane:nth-child(5) { grid-column: 4 / span 3; aspect-ratio: 16/8; } }
+  @media (max-width: 560px) { .lanes { grid-template-columns: 1fr 1fr; } .lane, .lane:nth-child(4), .lane:nth-child(5) { grid-column: span 1; aspect-ratio: 4/4.6; } .lane:nth-child(5) { grid-column: span 2; aspect-ratio: 16/8; } }
+
+  /* ---------- explore ---------- */
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 28px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--bg-2); }
+  .seg button {
+    font: 600 13px/1 var(--font-b); color: var(--ink-2); background: none; border: 0;
+    border-radius: 999px; padding: 10px 16px; cursor: pointer; transition: background .2s, color .2s;
+  }
+  .seg button.on { background: var(--rose); color: #16090b; }
+  .search {
+    flex: 1 1 220px; min-width: 180px;
+    font: 400 14px/1 var(--font-b); color: var(--ink);
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px;
+    padding: 12px 18px;
+  }
+  .search::placeholder { color: var(--ink-3); }
+  .search:focus { outline: none; border-color: rgba(232,65,94,.5); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font: 600 12.5px/1 var(--font-b); color: var(--ink-2);
+    background: none; border: 1px solid var(--line); border-radius: 999px;
+    padding: 9px 14px; cursor: pointer; transition: border-color .2s, color .2s, background .2s;
+    text-transform: capitalize;
+  }
+  .chip:hover { border-color: rgba(243,240,233,.3); color: var(--ink); }
+  .chip.on { background: var(--rose-dim); border-color: rgba(232,65,94,.55); color: var(--ink); }
+  .chip .x { font-weight: 600; color: var(--ink-3); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .grid-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 28px; flex-wrap: wrap; }
+  .grid-count { font: 600 13px/1 var(--font-b); color: var(--ink-3); }
+  .empty {
+    grid-column: 1 / -1; border: 1px dashed var(--line); border-radius: var(--rc);
+    padding: 56px 24px; text-align: center; color: var(--ink-2); font-size: 15px;
+  }
+  .honesty { font: 400 13px/1.5 var(--font-b); color: var(--ink-3); margin-top: 10px; }
+
+  /* ---------- universe ---------- */
+  .universe-panel {
+    border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    background: radial-gradient(120% 120% at 70% 20%, #121b16 0%, var(--bg) 70%);
+  }
+  .universe-grid { display: grid; grid-template-columns: 5fr 7fr; min-height: 460px; }
+  @media (max-width: 860px) { .universe-grid { grid-template-columns: 1fr; } }
+  .universe-copy { padding: 48px 40px; display: flex; flex-direction: column; justify-content: center; }
+  .universe-copy h2 { font: 600 clamp(28px, 3.4vw, 40px)/1.12 var(--font-d); margin-bottom: 16px; }
+  .universe-copy p { color: var(--ink-2); max-width: 46ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; font: 600 12.5px/1 var(--font-b); color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; }
+  .legend .cat-dot { width: 8px; height: 8px; }
+  #universeCanvas { width: 100%; height: 100%; min-height: 380px; display: block; }
+
+  /* ---------- newsletter ---------- */
+  .news-panel { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: grid; grid-template-columns: 7fr 5fr; background: var(--bg-2); }
+  @media (max-width: 860px) { .news-panel { grid-template-columns: 1fr; } }
+  .news-copy { padding: 56px 48px; }
+  @media (max-width: 620px) { .news-copy { padding: 40px 24px; } .universe-copy { padding: 40px 24px; } }
+  .news-copy h2 { font: 600 clamp(30px, 3.6vw, 44px)/1.1 var(--font-d); margin-bottom: 14px; }
+  .news-copy p { color: var(--ink-2); max-width: 46ch; margin-bottom: 28px; }
+  .news-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .soon { display: inline-flex; align-items: center; gap: 8px; font: 600 13px/1 var(--font-b); color: var(--ink-2); border: 1px dashed var(--line); border-radius: 999px; padding: 13px 18px; }
+  .soon .dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--radar)); animation: pulse 2.4s ease-in-out infinite; }
+  .news-img { position: relative; min-height: 260px; }
+  .news-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* BEEHIIV_SUBSCRIBE_URL: when the Beehiiv account exists, replace .news-actions with the subscribe form */
+
+  /* ---------- footer ---------- */
+  footer { margin-top: 128px; border-top: 1px solid var(--line); padding: 56px 0 48px; }
+  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; }
+  @media (max-width: 760px) { .foot-grid { grid-template-columns: 1fr; } }
+  .foot-grid h4 { font: 600 12px/1 var(--font-b); letter-spacing: .14em; color: var(--ink-3); margin-bottom: 16px; }
+  .foot-grid p, .foot-grid a { font: 400 13px/1.6 var(--font-b); color: var(--ink-2); }
+  .foot-grid a { display: block; text-decoration: none; padding: 3px 0; }
+  .foot-grid a:hover { color: var(--ink); }
+  .city-select {
+    font: 600 14px/1 var(--font-b); color: var(--ink);
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--rctl);
+    padding: 11px 14px; margin-top: 8px; max-width: 240px; width: 100%;
+  }
+  .foot-base { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); font: 400 12.5px/1.6 var(--font-b); color: var(--ink-3); }
+
+  /* ---------- map (Block 4) ---------- */
+  .map-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .map-chips { margin-bottom: 0; }
+  .map-city { margin-top: 0; width: auto; max-width: 240px; }
+  .map-panel { position: relative; height: 560px; border: 1px solid var(--line); border-radius: var(--rc); overflow: hidden; background: var(--bg-2); }
+  #mapCanvas { position: absolute; inset: 0; }
+  .map-fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; color: var(--ink-2); font-size: 14px; }
+  .map-panel.offline .map-fallback { display: grid; }
+  @media (max-width: 760px) { .map-panel { height: 60vh; min-height: 380px; } .map-city { width: 100%; max-width: none; } }
+  .maplibregl-popup-content { background: var(--bg-3); color: var(--ink); border: 1px solid var(--line); border-radius: var(--rc); padding: 14px 16px; box-shadow: 0 12px 32px rgba(0,0,0,.45); font: 400 13px/1.5 var(--font-b); }
+  .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--bg-3); }
+  .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--bg-3); }
+  .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bg-3); }
+  .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bg-3); }
+  .maplibregl-popup-close-button { color: var(--ink-3); font-size: 18px; padding: 4px 8px; }
+  .maplibregl-popup-close-button:hover { background: transparent; color: var(--ink); }
+  .mp-name { font: 600 16px/1.2 var(--font-d); margin-right: 18px; }
+  .mp-meta { color: var(--ink-3); font-size: 12px; margin-top: 4px; }
+  .mp-list { list-style: none; margin: 10px 0 0; padding: 0; }
+  .mp-list li { padding: 3px 0; }
+  .mp-date { color: var(--rose); font-weight: 600; font-variant-numeric: tabular-nums; margin-right: 4px; }
+  .mp-list a, .mp-link { color: var(--ink); text-decoration: none; }
+  .mp-list a:hover, .mp-link:hover { color: var(--rose); }
+  .mp-acts { color: var(--ink-2); font-size: 12px; margin-top: 8px; }
+  .mp-link { display: inline-block; margin-top: 10px; font-weight: 600; font-size: 12.5px; letter-spacing: .02em; }
+  .maplibregl-ctrl-group { background: var(--bg-3); border: 1px solid var(--line); }
+  .maplibregl-ctrl-group button + button { border-top-color: var(--line); }
+  .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(1) opacity(.8); }
+  .maplibregl-ctrl-attrib { background: rgba(11,16,14,.7) !important; color: var(--ink-3); font-size: 10px; }
+  .maplibregl-ctrl-attrib a { color: var(--ink-2); }
+
+  /* ---------- flesh-out (11.22): tags, actions, views, strips, skeleton, about ---------- */
+  .tag-free { color: #7be0a3; }
+  .card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+  .card-actions button, .card-actions a {
+    font: 600 11.5px/1 var(--font-b); letter-spacing: .03em; color: var(--ink-2);
+    background: none; border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px;
+    cursor: pointer; text-decoration: none; transition: border-color .2s, color .2s;
+  }
+  .card-actions button:hover, .card-actions a:hover { border-color: rgba(243,240,233,.3); color: var(--ink); }
+  .card-actions .done { color: #7be0a3; border-color: rgba(123,224,163,.45); }
+  .view-seg { margin-bottom: 28px; }
+  .view-empty {
+    border: 1px dashed var(--line); border-radius: var(--rc); padding: 32px 24px; margin-bottom: 24px;
+    color: var(--ink-2); font-size: 15px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;
+  }
+  .view-empty .btn, .empty .btn { padding: 11px 18px; font-size: 14px; }
+  .empty { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .news-strip {
+    grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+    border: 1px solid var(--line); border-radius: var(--rc); text-decoration: none;
+    background: linear-gradient(90deg, var(--rose-dim), transparent 60%); padding: 18px 22px;
+  }
+  .news-strip b { font: 600 15px/1.4 var(--font-b); display: block; }
+  .news-strip span { color: var(--ink-2); font-size: 13.5px; }
+  .news-strip .go { font: 600 13px/1 var(--font-b); color: var(--rose); white-space: nowrap; }
+  .rail .news-strip { flex: 0 0 290px; flex-direction: column; align-items: flex-start; justify-content: center; }
+  .skeleton { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .skeleton div {
+    height: 320px; border-radius: var(--rc);
+    background: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-3) 50%, var(--bg-2) 75%);
+    background-size: 200% 100%; animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @media (max-width: 980px) { .skeleton { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .skeleton { grid-template-columns: 1fr; } .skeleton div:nth-child(n+2) { display: none; } }
+  .map-kinds { margin: -6px 0 20px; }
+  .map-kinds .chip { text-transform: none; }
+  .about-panel {
+    border: 1px solid var(--line); border-radius: 16px; padding: 56px 48px; background: var(--bg-2);
+    display: grid; grid-template-columns: 5fr 7fr; gap: 40px;
+  }
+  @media (max-width: 860px) { .about-panel { grid-template-columns: 1fr; padding: 40px 24px; gap: 24px; } }
+  .about-panel h2 { font: 600 clamp(28px, 3.4vw, 40px)/1.12 var(--font-d); }
+  .about-panel p { color: var(--ink-2); max-width: 58ch; margin-bottom: 16px; }
+  .about-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; max-width: 520px; }
+  .about-facts div { border: 1px solid var(--line); border-radius: var(--rc); padding: 16px; }
+  .about-facts .n { font: 600 26px/1.1 var(--font-d); font-variant-numeric: tabular-nums; }
+  .about-facts .l { font: 600 11.5px/1.4 var(--font-b); letter-spacing: .08em; color: var(--ink-3); margin-top: 6px; }
+
+  /* ---------- submit an event (Block 5) ---------- */
+  .submit-panel { border: 1px solid var(--line); border-radius: 16px; background: var(--bg-2); padding: 56px 48px; display: grid; grid-template-columns: 5fr 7fr; gap: 40px; }
+  @media (max-width: 860px) { .submit-panel { grid-template-columns: 1fr; padding: 40px 24px; gap: 24px; } }
+  .submit-panel h2 { font: 600 clamp(28px, 3.4vw, 40px)/1.12 var(--font-d); margin-bottom: 14px; }
+  .submit-panel .lede { color: var(--ink-2); max-width: 40ch; }
+  .sf { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .sf .full { grid-column: 1 / -1; }
+  @media (max-width: 560px) { .sf { grid-template-columns: 1fr; } }
+  .sf label { display: block; font: 600 12.5px/1.3 var(--font-b); color: var(--ink-2); margin-bottom: 6px; }
+  .sf label .opt { color: var(--ink-3); font-weight: 400; }
+  .sf input[type=text], .sf input[type=url], .sf input[type=email], .sf input[type=date], .sf select, .sf textarea {
+    width: 100%; font: 400 16px/1.4 var(--font-b); color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: var(--rctl); padding: 11px 12px; color-scheme: dark;
+  }
+  .sf textarea { min-height: 84px; resize: vertical; }
+  .sf input:focus, .sf select:focus, .sf textarea:focus { outline: none; border-color: rgba(232,65,94,.55); }
+  .sf .lanes-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sf .lanes-pick .chip { margin: 0; }
+  .sf .check { display: flex; gap: 10px; align-items: center; font: 400 14px/1.4 var(--font-b); color: var(--ink-2); }
+  .sf .check input { width: 18px; height: 18px; accent-color: var(--rose); }
+  .sf .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .sf-note { font: 400 13px/1.5 var(--font-b); color: var(--ink-3); }
+  .sf-msg { font: 600 14px/1.5 var(--font-b); margin-top: 4px; }
+  .sf-msg.ok { color: #7be0a3; } .sf-msg.err { color: var(--rose); }
+
+  /* ---------- cards: whole card clicks through; no-picture band ---------- */
+  .card[data-url] { cursor: pointer; }
+  .card-media.nophoto { aspect-ratio: auto; height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 12px; }
+  .card-media.nophoto .date-chip { position: static; flex: 0 0 auto; }
+  .card-media.nophoto .lane-words { margin-left: auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font: 600 11px/1 var(--font-b); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+  .card-media:empty { display: none; }
+
+  /* ---------- reveal ---------- */
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .card, .lane, .card-media .ph, .lane img { transition: none; }
+    .sweep-stamp .dot, .soon .dot { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap nav-inner">
+    <a class="mark" href="#top" aria-label="Rose City Radar, back to top">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="#e8415e" stroke-width="1.5" opacity=".5"/><circle cx="16" cy="16" r="6" fill="none" stroke="#e8415e" stroke-width="1.5" opacity=".8"/><path d="M16 16 L16 4 A12 12 0 0 1 26.4 10z" fill="#e8415e" opacity=".9"/><circle cx="16" cy="16" r="2.2" fill="#e8415e"/></svg>
+      <b>ROSE CITY RADAR</b>
+    </a>
+    <div class="nav-links">
+      <a href="#weekend">Happening</a>
+      <a href="#map">Map</a>
+      <a href="#lanes">Lanes</a>
+      <a href="#explore">Explore</a>
+      <a href="#submit">Add event</a>
+    </div>
+    <a class="nav-cta" href="#newsletter">The Friday email</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="hero-bg" id="heroBg"></div>
+  <div class="hero-scrim"></div>
+  <canvas id="radar" aria-hidden="true"></canvas>
+  <div class="wrap hero-content">
+    <span class="eyebrow">TYLER, TEXAS · 35-MILE RADIUS</span>
+    <h1>Everything worth doing in the <em>Rose City</em>.</h1>
+    <p class="hero-sub" id="heroSub">The radar watches the calendars, venues and clubs of greater Tyler so you never miss a weekend. Refreshed weekly. Every listing links its official page.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#weekend">What's on the radar</a>
+      <a class="btn btn-ghost" href="#submit">Add your event</a>
+    </div>
+    <div class="hero-stats" id="heroStats"></div>
+  </div>
+  <div class="hero-imgnote">Tyler Municipal Rose Garden · photo <a href="https://www.flickr.com/photos/46183897@N00/5636603790/" target="_blank" rel="noopener">Robert Nunnally</a>, <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC BY 2.0</a></div>
+  <div class="sweep-stamp"><span class="dot"></span><span id="sweepStamp">LAST SWEEP</span></div>
+</header>
+
+<main>
+  <section class="section" id="weekend">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="kicker">ON THE RADAR</div>
+        <h2 id="weekendH2">On the radar.</h2>
+        <p>Around Tyler, each day listed once. Tap a card for the official page, or add it straight to your calendar.</p>
+      </div>
+      <div class="seg view-seg reveal" role="tablist" aria-label="Time window" id="viewSeg">
+        <button type="button" role="tab" data-view="today">Today</button>
+        <button type="button" role="tab" data-view="week">This week</button>
+        <button type="button" role="tab" data-view="weekend">This weekend</button>
+      </div>
+      <div id="weekendDays"><div class="skeleton" aria-hidden="true"><div></div><div></div><div></div></div></div>
+      <div class="ongoing reveal" id="ongoing"></div>
+    </div>
+  </section>
+
+  <section class="section" id="map">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="kicker">ON THE MAP</div>
+        <h2>Where it's happening.</h2>
+        <p id="mapCount">Places with something coming up. Numbers are groups: tap to split them, tap a pin for what's on there.</p>
+      </div>
+      <div class="map-controls reveal">
+        <div class="chips map-chips" id="mapChips"></div>
+        <select class="city-select map-city" id="mapCity" aria-label="Choose a city"></select>
+      </div>
+      <div class="chips map-chips map-kinds reveal" id="mapKinds" aria-label="Filter by type"></div>
+      <div class="map-panel reveal">
+        <div id="mapCanvas" role="region" aria-label="Map of places with events"></div>
+        <div class="map-fallback" id="mapFallback">The map needs an internet connection to draw. The lists below work without it.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="lanes">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="kicker">FIVE LANES</div>
+        <h2>Pick your lane.</h2>
+        <p>Every listing is tagged for the life it fits: a night out, a skill, a room full of people, the family, the kids.</p>
+      </div>
+      <div class="lanes" id="lanesGrid"></div>
+    </div>
+  </section>
+
+  <section class="section" id="explore">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="kicker">THE FULL PICTURE</div>
+        <h2 id="exploreH2">Search everything the radar sees.</h2>
+        <p class="honesty">Hours and dates change. Check the official link before you go.</p>
+      </div>
+      <div class="controls reveal">
+        <div class="seg" role="tablist" aria-label="Listing type">
+          <button id="segEvents" class="on" role="tab" aria-selected="true">Coming up</button>
+          <button id="segStanding" role="tab" aria-selected="false">Standing favorites</button>
+        </div>
+        <input class="search" id="search" type="search" placeholder="Search events, venues, towns, tags" aria-label="Search listings">
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="grid" id="grid"><div class="skeleton" style="grid-column:1/-1" aria-hidden="true"><div></div><div></div><div></div></div></div>
+      <div class="grid-foot">
+        <span class="grid-count" id="gridCount"></span>
+        <button class="btn btn-ghost" id="moreBtn" type="button">Show 15 more</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="newsletter">
+    <div class="wrap">
+      <div class="news-panel reveal">
+        <div class="news-copy">
+          <div class="kicker">THE FRIDAY RADAR</div>
+          <h2>Your weekend, picked. Friday, 6:00 am.</h2>
+          <p>One short email. The best of what the radar caught for the weekend ahead, already linked, already sorted. No feeds, no scrolling.</p>
+          <div class="news-actions">
+            <span class="soon"><span class="dot"></span>Signups open with Issue No. 1</span>
+            <a class="btn btn-ghost" href="#weekend">See this weekend instead</a>
+          </div>
+        </div>
+        <div class="news-img">
+          <img src="img/web/roses-closeup.webp" alt="" loading="lazy" decoding="async" onerror="this.parentNode.remove()">
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="section" id="submit">
+    <div class="wrap">
+      <div class="submit-panel reveal">
+        <div>
+          <div class="kicker">ADD YOUR EVENT</div>
+          <h2>Know about something? Put it on the radar.</h2>
+          <p class="lede">Send it in with its official page. We check every submission against that page before it appears, usually within a day.</p>
+        </div>
+        <form class="sf" id="submitForm" novalidate>
+          <div class="full"><label for="sfName">Event name</label><input type="text" id="sfName" maxlength="140" required></div>
+          <div><label for="sfDate">Date</label><input type="date" id="sfDate" required></div>
+          <div><label for="sfEnd">Last day <span class="opt">if more than one</span></label><input type="date" id="sfEnd"></div>
+          <div><label for="sfTime">Start time <span class="opt">optional</span></label><input type="text" id="sfTime" maxlength="60" placeholder="7 pm"></div>
+          <div><label for="sfCost">Cost</label><select id="sfCost"><option value="free">Free</option><option value="$">$ under $15</option><option value="$$">$$ $15 to $50</option><option value="$$$">$$$ over $50</option></select></div>
+          <div><label for="sfVenue">Venue</label><input type="text" id="sfVenue" maxlength="140" required></div>
+          <div><label for="sfTown">Town</label><select id="sfTown" required></select></div>
+          <div class="full"><label for="sfUrl">Official link <span class="opt">the event's own page is best</span></label><input type="url" id="sfUrl" maxlength="500" placeholder="https://" required></div>
+          <div class="full"><label>Who is it for? <span class="opt">pick one or more</span></label><div class="lanes-pick" id="sfLanes"></div></div>
+          <div class="full"><label for="sfDesc">What is it? <span class="opt">one or two sentences</span></label><textarea id="sfDesc" maxlength="300" required></textarea></div>
+          <div class="full"><label for="sfEmail">Your email <span class="opt">never shown, only used if we have a question</span></label><input type="email" id="sfEmail" maxlength="200" autocomplete="email" required></div>
+          <div class="full check"><input type="checkbox" id="sfNews"><label for="sfNews" style="margin:0">Send me the Friday Radar when it starts</label></div>
+          <input class="hp" type="text" id="sfWebsite" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <div class="full sf-note">Please don't include children's names.</div>
+          <div class="full"><button class="btn btn-primary" type="submit" id="sfBtn">Send it in</button><div class="sf-msg" id="sfMsg" role="status"></div></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <div class="wrap">
+      <div class="about-panel reveal">
+        <div>
+          <div class="kicker">ABOUT THE RADAR</div>
+          <h2>One page for the whole metro.</h2>
+        </div>
+        <div>
+          <p>Rose City Radar is everything happening within about 35 miles of Tyler, on one page: dated events, standing favorites, and the places they happen. Every listing links its official page.</p>
+          <p>Tyler has more going on than any one calendar shows. Venues post on their own sites, clubs on theirs, the city on its own, and most of it gets found the day after. The radar reads those sources every week and puts what it catches in one place, sorted by when.</p>
+          <p>Something missing? <a href="#submit">Add your event</a>. Every submission is checked against its official page before it appears.</p>
+          <div class="about-facts" id="aboutFacts"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>ROSE CITY RADAR</h4>
+        <p id="footAbout">Dated events and standing favorites around Tyler, Texas, gathered from local sources and refreshed weekly. Every listing links its official page.</p>
+        <label for="citySel" style="display:block; margin-top:20px;">
+          <h4 style="margin-bottom:8px;">CITY</h4>
+          <select class="city-select" id="citySel" aria-label="Choose a city">
+            <option selected>Tyler, TX</option>
+            <option disabled>More cities coming</option>
+          </select>
+        </label>
+      </div>
+      <div>
+        <h4>ON THIS PAGE</h4>
+        <a href="#weekend">Happening</a>
+        <a href="#map">On the map</a>
+        <a href="#lanes">Five lanes</a>
+        <a href="#explore">Explore everything</a>
+        <a href="#newsletter">The Friday Radar</a>
+        <a href="#submit">Add your event</a>
+        <a href="#about">About</a>
+      </div>
+      <div>
+        <h4>ABOUT THE DATA</h4>
+        <p id="footData"></p>
+        <p style="margin-top:12px;">Photos of real places are openly licensed and credited on the picture. Other pictures show the kind of outing, not the venue.</p>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>© 2026 Rose City Radar · Built in Bullard, Texas</span>
+      <span>Hours and schedules change. Check the official link before you go.</span>
+    </div>
+  </div>
+</footer>
+
+<!-- Data layer (Block 3): config.js says whether to read Supabase live or the bundled js/*.js
+     files; db.js loads one or the other, then calls RCR_BOOT() below. -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" defer></script>
+<script src="js/map.js" defer></script>
+<script src="config.js"></script>
+<script src="js/db.js"></script>
+<script>
+window.RCR_BOOT = function boot() {
+"use strict";
+/* ================= helpers ================= */
+const esc = s => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+const linked = (text, href) => href ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const CAT_COLOR = { pleasure: "var(--c-pleasure)", development: "var(--c-development)", networking: "var(--c-networking)", family: "var(--c-family)", kids: "var(--c-kids)" };
+const CATS = ["pleasure", "development", "networking", "family", "kids"];
+const pad = n => String(n).padStart(2, "0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromISO = s => new Date(s + "T12:00:00");
+const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const mdy = s => { const [y, m, d] = s.split("-"); return `${+m}.${+d}.${y}`; };
+const md = s => { const [, m, d] = s.split("-"); return `${+m}.${+d}`; };
+const TODAY = iso(new Date());
+
+/* ========== photo resolver (carried over from index.html; README -> Photos) ========== */
+const HAS_PHOTOS = typeof THEMES !== "undefined";
+const HAS_PLACES = typeof PLACES !== "undefined";
+const termRe = {};
+const wordIn = (term, text) =>
+  (termRe[term] ||= new RegExp(`\\b${term.replace(/-/g, "[- ]")}s?\\b`, "i")).test(text);
+const normName = s => (s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .replace(/['’]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const venueName = v => normName((v || "").split(" @ ")[0].split(/,\s*\d/)[0].split(",")[0]);
+const placeIndex = {};
+if (HAS_PLACES) for (const p of PLACES) for (const n of p.names) placeIndex[normName(n)] = p;
+function placeFor(item) {
+  if (!HAS_PLACES) return null;
+  const key = item.cadence === "venue" ? normName(item.name) : venueName(item.venue);
+  const p = key && placeIndex[key];
+  if (!p || (p.city && !normName(item.city).startsWith(normName(p.city)))) return null;
+  return p;
+}
+function themesFor(item) {
+  const tags = item.tags || [];
+  const ownPlace = item.cadence === "venue";
+  const atPlace = ownPlace || !!item.venue;
+  const usable = (HAS_PHOTOS ? THEMES : []).filter(t => (t.status || "active") === "active"
+    && !(atPlace && t.place_like) && !(ownPlace && t.framing !== "closeup"));
+  const ok = id => usable.some(t => t.id === id);
+  const passes = [m => wordIn(m, item.name), m => tags.includes(m), m => wordIn(m, item.description || "")];
+  const out = [];
+  passes.forEach((test, rank) => {
+    for (const t of usable) if (!out.some(o => o.id === t.id) && t.match.some(test)) out.push({ id: t.id, rank });
+  });
+  const fb = HAS_PHOTOS ? THEME_FALLBACK : {};
+  for (const c of item.categories) if (fb[c] && ok(fb[c]) && !out.some(o => o.id === fb[c])) out.push({ id: fb[c], rank: 3 });
+  if (!out.length && ok("leisure")) out.push({ id: "leisure", rank: 4 });
+  return out;
+}
+// One generated picture per card, never two (Justin 11.24.2026): img/assign.js maps each card's
+// normalized name to its own picture. A card without one shows its venue's photo or nothing.
+const HAS_ASSIGN = typeof PHOTO_FOR !== "undefined";
+function pickPhotos(items) {
+  let prev = null;
+  return items.map(it => {
+    const place = placeFor(it);
+    if (place) { prev = "place/" + place.id; return { place }; }
+    if (HAS_ASSIGN) { const own = PHOTO_FOR[normName(it.name)]; prev = own || null; return own ? { theme: own } : null; }
+    const c = themesFor(it);
+    if (!c.length) { prev = null; return null; }
+    const pick = c[0].id === prev && c[1] && c[1].rank === c[0].rank ? c[1] : c[0];
+    prev = pick.id;
+    return { theme: variantOf(pick.id, it.name) };
+  });
+}
+function variantOf(id, name) {
+  const t = HAS_PHOTOS && THEMES.find(x => x.id === id);
+  const files = [id, ...((t && t.variants) || [])];
+  let h = 0;
+  for (const ch of name || "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return files[h % files.length];
+}
+const imgSrc = id => (window.IMG_DATA && IMG_DATA[id]) || `img/web/${id}.webp`;
+const placeSrc = p => (window.IMG_DATA && IMG_DATA["place/" + p.id]) || `img/places/${p.id}.webp`;
+function photoHTML(ph) {
+  if (!ph) return "";
+  if (ph.place) {
+    const p = ph.place;
+    return `<img class="ph" src="${placeSrc(p)}" alt="${esc(p.alt || p.title)}" loading="lazy" decoding="async" onerror="this.remove()">`
+      + `<div class="ph-credit">${linked("“" + p.title + "”", p.file_page)} · ${linked(p.creator, p.creator_url)}`
+      + ` · ${esc(p.source)} · ${linked(p.license, p.license_url)} · resized and cropped</div>`;
+  }
+  return `<div class="ph-wrap"><img class="ph" src="${imgSrc(ph.theme)}" alt="" loading="lazy" decoding="async"`
+    + ` onerror="this.parentNode.remove()"></div>`;
+}
+
+/* ================= derived data ================= */
+/* Event types, read off the name (and the opening of the description) with keyword rules. Heuristic, so the chips are "by type", not a promise. */
+const KINDS = [
+  ["music", "Live music", /\b(live music|concert|band|singer|songwriter|jazz|blues|bluegrass|karaoke|open mic|dj|acoustic|symphony|choir|orchestra|gospel)\b/i],
+  ["market", "Markets & fairs", /\b(market|farmers|craft show|craft fair|vendor|bazaar|swap meet|flea|trade days|antique)\b/i],
+  ["show", "Theater & shows", /\b(theat(?:re|er)|play|musical|comedy|improv|ballet|recital|performance|magic|opera|film|movie|screening|cinema)\b/i],
+  ["sport", "Runs & sports", /\b(5k|10k|marathon|run|race|tournament|game|rodeo|softball|baseball|football|basketball|soccer|volleyball|golf|pickleball|cycling|ride|match)\b/i],
+  ["class", "Classes & talks", /\b(class|classes|workshop|lecture|seminar|lesson|lessons|training|webinar|talk|book club|author|course|clinic)\b/i],
+  ["games", "Trivia & games", /\b(trivia|bingo|game night|board game|poker|chess|dungeons|dominoes|cards)\b/i],
+  ["kids", "Kids", /\b(kids?|children|childrens|storytime|story time|toddlers?|teens?|youth|camp|family fun)\b/i],
+  ["fest", "Festivals & holidays", /\b(festival|fest|parade|christmas|holiday|lights|tree lighting|fireworks|celebration|pumpkin|easter|juneteenth|fourth of july|4th of july|thanksgiving)\b/i],
+  ["food", "Food & drink", /\b(wine|brew|brewery|beer|tasting|dinner|brunch|cook|cooking|bbq|barbecue|food truck|tacos?|crawfish|chili|cocktail|coffee|happy hour|supper)\b/i],
+  ["outdoors", "Outdoors", /\b(hike|hiking|trail|nature|birds?|birding|garden|fishing|kayak|paddle|outdoor|stargazing|arboretum|lake|state park)\b/i],
+];
+const kindsOf = e => {
+  const hay = `${e.name} ${(e.description || "").slice(0, 140)}`;
+  return KINDS.filter(k => k[2].test(hay)).map(k => k[0]);
+};
+/* A one-day event today is over once its end time passes: the listed end ("7:00 PM - 10:00 PM"),
+   or 2 hours after the start when only a start is listed. No parseable time, multi-day, or an end
+   past midnight ("9pm - 1am") keeps it listed all day. */
+function endedToday(e, now = new Date()) {
+  if (e.date !== TODAY || (e.end_date && e.end_date !== e.date)) return false;
+  const m = [...(e.time || "").matchAll(/(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\b\.?/gi)].slice(0, 2);
+  if (!m.length) return false;
+  const mins = x => (+x[1] % 12 + (x[3].toLowerCase() === "p" ? 12 : 0)) * 60 + +(x[2] || 0);
+  const start = mins(m[0]);
+  const end = m.length === 2 ? mins(m[1]) : start + 120;
+  if (end <= start || end >= 24 * 60) return false;
+  return now.getHours() * 60 + now.getMinutes() > end;
+}
+const upcoming = EVENTS.filter(e => (e.end_date || e.date) >= TODAY && !endedToday(e));
+window.EVENTS = upcoming;   /* the app's Near me reads this too */
+upcoming.forEach(e => { e.kinds = kindsOf(e); });
+const singles = upcoming.filter(e => !e.end_date || e.end_date === e.date);
+const ongoing = upcoming.filter(e => e.end_date && e.end_date !== e.date && e.date <= TODAY)
+  .sort((a, b) => a.end_date.localeCompare(b.end_date));
+const investigated = SOURCES.filter(s => s.status === "investigated" || s.status === "seed").length;
+const pendingN = SOURCES.filter(s => s.status === "pending").length;
+const blockedN = SOURCES.filter(s => s.status === "blocked").length;
+
+function weekendDates() {
+  const d = new Date();
+  const dow = d.getDay();                       // 0 Sun .. 6 Sat
+  const fri = new Date(d);
+  fri.setDate(d.getDate() + ((5 - dow + 7) % 7) - (dow === 6 || dow === 0 ? 7 : 0));
+  const out = [];
+  for (let i = 0; i < 3; i++) {
+    const day = new Date(fri); day.setDate(fri.getDate() + i);
+    if (iso(day) >= TODAY) out.push(iso(day));
+  }
+  return out;
+}
+const WEEKEND = weekendDates();
+const WEEK = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return iso(d); });
+const VIEWS = { today: [TODAY], week: WEEK, weekend: WEEKEND };
+const VIEW_LABEL = { today: "Today", week: "This week", weekend: "This weekend" };
+const dayEvents = day => singles.filter(e => e.date === day);
+const weekendEvents = WEEKEND.map(dayEvents);
+const weekendCount = weekendEvents.reduce((n, a) => n + a.length, 0);
+window.__weekendCount = weekendCount;
+/* Thursday through Sunday the weekend is the question; the rest of the week it is today */
+const DOW = new Date().getDay();
+let view = (DOW >= 4 || DOW === 0) && weekendCount ? "weekend" : "today";
+
+/* ================= hero ================= */
+document.getElementById("heroBg").style.backgroundImage = 'url("img/web/hero-rosegarden.jpg")';
+document.getElementById("sweepStamp").textContent = "LAST SWEEP " + (typeof EVENTS_HARVESTED !== "undefined" ? EVENTS_HARVESTED : "");
+const heroStats = [
+  [upcoming.length, "EVENTS ON THE CALENDAR"],
+  [ACTIVITIES.length, "STANDING FAVORITES"],
+  [SOURCES.length, "LOCAL SOURCES READ"],
+];
+document.getElementById("heroStats").innerHTML = heroStats.map(([n, l]) =>
+  `<div class="stat"><div class="n" data-n="${n}">0</div><div class="l">${l}</div></div>`).join("");
+function countUp(el) {
+  const target = +el.dataset.n;
+  if (REDUCED) { el.textContent = target.toLocaleString(); return; }
+  const t0 = performance.now(), dur = 1100;
+  (function tick(t) {
+    const k = Math.min((t - t0) / dur, 1);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))).toLocaleString();
+    if (k < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+document.querySelectorAll(".stat .n").forEach(countUp);
+
+/* ================= cards ================= */
+const catDots = cats => (cats || []).slice(0, 3).map(c =>
+  `<span class="cat-dot" style="background:${CAT_COLOR[c] || "var(--ink-3)"}" title="${esc(c)}"></span>`).join("");
+function cleanTime(t) { return (t || "").replace(/\s*\(per listing\)\s*/i, "").trim(); }
+/* "7:00 PM - 10:00 PM" -> "7–10 pm", "10:30am" -> "10:30 am"; anything unparsable passes through */
+function fmtTime(t) {
+  t = cleanTime(t); if (!t) return "";
+  const m = [...t.matchAll(/(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m?\.?/gi)].slice(0, 2);
+  if (!m.length) return t.length > 28 ? t.slice(0, 26) + "…" : t;
+  const one = x => (+x[1]) + (x[2] && x[2] !== "00" ? ":" + x[2] : "");
+  const ap = x => x[3].toLowerCase() + "m";
+  if (m.length === 2) return ap(m[0]) === ap(m[1]) ? `${one(m[0])}–${one(m[1])} ${ap(m[1])}` : `${one(m[0])} ${ap(m[0])}–${one(m[1])} ${ap(m[1])}`;
+  return `${one(m[0])} ${ap(m[0])}`;
+}
+const costTag = c => c === "free" ? '<span class="tag-free">Free</span>' : esc(c || "");
+function actionsHTML(e) {
+  const d = [["name", e.name], ["date", e.date], ["end", e.end_date || ""], ["time", cleanTime(e.time)], ["venue", e.venue || ""], ["url", e.url || ""]]
+    .map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
+  return `<div class="card-actions">
+    <button type="button" data-ics ${d}>+ Calendar</button>
+    <button type="button" data-copy="${esc(e.url)}">Copy link</button>
+  </div>`;
+}
+/* shouting or emoji-laden names rank behind quieter ones, never removed */
+function noisy(s) {
+  if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(s)) return 1;
+  const letters = s.replace(/[^A-Za-z]/g, "");
+  return letters.length > 11 && s.replace(/[^A-Z]/g, "").length / letters.length > .6 ? 1 : 0;
+}
+/* A card with no picture gets a slim band in its lane's color instead of an empty box. */
+const LANE_RGB = { pleasure: "224,164,88", development: "111,168,232", networking: "171,144,227", family: "102,192,143", kids: "232,132,179" };
+const laneTint = cats => { const c = LANE_RGB[(cats || [])[0]] || "169,182,175";
+  return `style="background:linear-gradient(100deg, rgba(${c},.22), rgba(${c},.05) 70%)"`; };
+const laneWords = cats => `<span class="lane-words">${(cats || []).slice(0, 2).map(esc).join(" · ")}</span>`;
+function eventCard(e, ph) {
+  const when = e.end_date && e.end_date !== e.date ? `${md(e.date)} through ${md(e.end_date)}` : `${DAYS[fromISO(e.date).getDay()]} ${md(e.date)}`;
+  const time = fmtTime(e.time);
+  const metaBits = [esc(time), costTag(e.cost)].filter(Boolean);
+  const where = [e.venue ? e.venue.split(" @ ")[0].split(",")[0] : "", e.city ? e.city.split(",")[0] : ""].filter(Boolean);
+  return `<article class="card reveal" data-url="${esc(e.url)}">
+    <div class="card-media ${ph ? "" : "nophoto"}" ${ph ? "" : laneTint(e.categories)}><span class="date-chip">${esc(when)}</span>${ph ? photoHTML(ph) : laneWords(e.categories)}</div>
+    <div class="card-body">
+      <div class="card-meta">${catDots(e.categories)}${metaBits.join(" · ")}</div>
+      <h3 class="card-name"><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.name)}</a></h3>
+      <p class="card-desc">${esc(e.description)}</p>
+      ${actionsHTML(e)}
+      <div class="card-foot"><span>${esc(where.join(" · "))}</span><a class="go" href="${esc(e.url)}" target="_blank" rel="noopener">Official page →</a></div>
+    </div>
+  </article>`;
+}
+function activityCard(a, ph) {
+  const metaBits = [esc((a.schedule || "").slice(0, 60)), costTag(a.cost)].filter(Boolean);
+  const where = [a.city ? a.city.split(",")[0] : "", a.distance_miles != null ? `${a.distance_miles} mi` : ""].filter(Boolean);
+  return `<article class="card reveal" data-url="${esc(a.url)}">
+    <div class="card-media ${ph ? "" : "nophoto"}" ${ph ? "" : laneTint(a.categories)}>${ph ? photoHTML(ph) : laneWords(a.categories)}</div>
+    <div class="card-body">
+      <div class="card-meta">${catDots(a.categories)}${metaBits.join(" · ")}</div>
+      <h3 class="card-name"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a></h3>
+      <p class="card-desc">${esc(a.description)}</p>
+      <div class="card-foot"><span>${esc(where.join(" · "))}</span><a class="go" href="${esc(a.url)}" target="_blank" rel="noopener">Official page →</a></div>
+    </div>
+  </article>`;
+}
+
+/* ================= weekend ================= */
+const CAP = 12;
+function dayLabel(dstr) {
+  if (dstr === TODAY) return "Today";
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  if (dstr === iso(t)) return "Tomorrow";
+  const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return names[fromISO(dstr).getDay()];
+}
+const newsStrip = () => `<a class="news-strip" href="#newsletter"><b>Get this in your inbox Friday.</b><span>The Friday Radar, 6:00 am. One short email.</span><span class="go">The Friday email →</span></a>`;
+function renderDays() {
+  const days = VIEWS[view];
+  const perDay = days.map(dayEvents);
+  const total = perDay.reduce((n, a) => n + a.length, 0);
+  document.getElementById("weekendH2").textContent = `${VIEW_LABEL[view]}: ${total} ${total === 1 ? "thing" : "things"} on the radar.`;
+  document.querySelectorAll("#viewSeg button").forEach(b => {
+    const on = b.dataset.view === view; b.classList.toggle("on", on); b.setAttribute("aria-selected", on);
+    const n = VIEWS[b.dataset.view].map(dayEvents).reduce((k, a) => k + a.length, 0);
+    b.textContent = `${VIEW_LABEL[b.dataset.view]} (${n})`;
+  });
+  const host = document.getElementById("weekendDays");
+  if (!total) {
+    const next = view === "today" ? "week" : view === "weekend" ? "week" : null;
+    host.innerHTML = `<div class="view-empty"><span>Nothing dated for ${VIEW_LABEL[view].toLowerCase()} yet. The sweep runs weekly; standing favorites are always open.</span>` +
+      (next ? `<button class="btn btn-ghost" type="button" data-view="${next}">See ${VIEW_LABEL[next].toLowerCase()}</button>` : `<a class="btn btn-ghost" href="#explore">Browse standing favorites</a>`) + `</div>`;
+    return;
+  }
+  let stripDone = false;
+  host.innerHTML = days.map((day, i) => {
+    const evs = perDay[i];
+    if (!evs.length) return "";
+    const sorted = [...evs].sort((a, b) => noisy(a.name) - noisy(b.name) || (b.time ? 1 : 0) - (a.time ? 1 : 0) || a.name.localeCompare(b.name));
+    const shown = sorted.slice(0, CAP);
+    const photos = pickPhotos(shown);
+    const more = sorted.length - shown.length;
+    const strip = !stripDone && shown.length >= 3 ? (stripDone = true, newsStrip()) : "";
+    return `<div class="day">
+      <div class="day-head reveal in"><h3>${dayLabel(day)}</h3><span class="count">${DAYS[fromISO(day).getDay()]} ${md(day)} · ${evs.length} ${evs.length === 1 ? "event" : "events"}</span></div>
+      <div class="rail-clip reveal in"><div class="rail" role="list" aria-label="Events on ${dayLabel(day)}">
+        ${shown.map((e, k) => eventCard(e, photos[k])).join("")}
+        ${more > 0 ? `<a class="more-card" href="#explore" data-day="${day}">+${more} more on ${DAYS[fromISO(day).getDay()]} ${md(day)} →</a>` : ""}
+        ${strip}
+      </div></div>
+    </div>`;
+  }).join("");
+  host.querySelectorAll(".rail .reveal").forEach(el => el.classList.remove("reveal"));
+}
+renderDays();
+document.getElementById("weekend").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-view]"); if (!b) return;
+  view = b.dataset.view; renderDays();
+});
+const og = ongoing.slice(0, 8);
+document.getElementById("ongoing").innerHTML = og.length ? `<h3>ALSO RUNNING NOW</h3>` + og.map(e =>
+  `<a href="${esc(e.url)}" target="_blank" rel="noopener">
+     <span class="o-name">${esc(e.name)}</span>
+     <span class="o-meta">through ${md(e.end_date)} · ${esc((e.venue || e.city || "").split(" @ ")[0].split(",")[0])}</span>
+   </a>`).join("") : "";
+
+/* ================= lanes ================= */
+const LANE_IMG = { pleasure: "live-music", development: "library", networking: "networking-closeup", family: "farm", kids: "playground" };
+const laneCounts = {};
+for (const c of CATS) laneCounts[c] = {
+  act: ACTIVITIES.filter(a => a.categories.includes(c)).length,
+  ev: upcoming.filter(e => (e.categories || []).includes(c)).length,
+};
+document.getElementById("lanesGrid").innerHTML = CATS.map(c => `
+  <button class="lane reveal" data-cat="${c}" aria-label="Browse ${c} listings">
+    <img src="img/web/${LANE_IMG[c]}.webp" alt="" loading="lazy" decoding="async" onerror="this.remove()">
+    <div class="lane-scrim"></div>
+    <div class="lane-body">
+      <span class="cat-dot" style="background:${CAT_COLOR[c]}"></span>
+      <h3>${c}</h3>
+      <div class="lc">${laneCounts[c].ev} coming up · ${laneCounts[c].act} standing</div>
+    </div>
+  </button>`).join("");
+
+/* ================= explore ================= */
+const state = { mode: "events", cat: null, q: "", day: null, limit: 15 };
+const grid = document.getElementById("grid");
+const exploreEvents = upcoming.map(e => ({ ...e, _k: e.date <= TODAY ? TODAY : e.date }))
+  .sort((a, b) => a._k.localeCompare(b._k) || noisy(a.name) - noisy(b.name) || a.name.localeCompare(b.name));
+const exploreActs = [...ACTIVITIES].sort((a, b) => (a.distance_miles ?? 99) - (b.distance_miles ?? 99) || a.name.localeCompare(b.name));
+function matches(it) {
+  if (state.cat && !(it.categories || []).includes(state.cat)) return false;
+  if (state.day && state.mode === "events" && !(it.date <= state.day && (it.end_date || it.date) >= state.day)) return false;
+  if (state.q) {
+    const hay = `${it.name} ${it.description || ""} ${it.venue || ""} ${it.city || ""} ${(it.tags || []).join(" ")}`.toLowerCase();
+    for (const tok of state.q.toLowerCase().split(/\s+/)) if (tok && !hay.includes(tok)) return false;
+  }
+  return true;
+}
+function renderChips() {
+  let html = CATS.map(c =>
+    `<button class="chip ${state.cat === c ? "on" : ""}" data-cat="${c}">
+       <span class="cat-dot" style="background:${CAT_COLOR[c]}"></span>${c}</button>`).join("");
+  if (state.day) html += `<button class="chip on" data-clearday="1">${DAYS[fromISO(state.day).getDay()]} ${md(state.day)} <span class="x">✕</span></button>`;
+  document.getElementById("chips").innerHTML = html;
+}
+function renderGrid() {
+  const pool = state.mode === "events" ? exploreEvents : exploreActs;
+  const hits = pool.filter(matches);
+  const shown = hits.slice(0, state.limit);
+  const photos = pickPhotos(shown);
+  grid.innerHTML = shown.length
+    ? shown.map((it, i) => (state.mode === "events" ? eventCard(it, photos[i]) : activityCard(it, photos[i])) + ((i + 1) % 6 === 0 ? newsStrip() : "")).join("")
+    : `<div class="empty"><span>Nothing ${state.cat ? `in ${state.cat}` : "on the radar"}${state.day ? ` on ${md(state.day)}` : ""}${state.q ? ` for “${esc(state.q)}”` : ""}${state.mode === "standing" ? " among the standing favorites" : ""}.</span>` +
+      `<button class="btn btn-ghost" type="button" data-clearall="1">Clear filters</button></div>`;
+  document.getElementById("gridCount").textContent =
+    `Showing ${shown.length} of ${hits.length}` + (state.cat ? ` in ${state.cat}` : "") + (state.day ? ` on ${md(state.day)}` : "");
+  document.getElementById("moreBtn").style.display = hits.length > shown.length ? "" : "none";
+  grid.querySelectorAll(".reveal").forEach(el => observer.observe(el));
+}
+document.getElementById("segEvents").addEventListener("click", () => setMode("events"));
+document.getElementById("segStanding").addEventListener("click", () => setMode("standing"));
+function setMode(m) {
+  state.mode = m; state.limit = 15;
+  document.getElementById("segEvents").classList.toggle("on", m === "events");
+  document.getElementById("segEvents").setAttribute("aria-selected", m === "events");
+  document.getElementById("segStanding").classList.toggle("on", m === "standing");
+  document.getElementById("segStanding").setAttribute("aria-selected", m === "standing");
+  renderChips(); renderGrid();
+}
+document.getElementById("segEvents").textContent = `Coming up (${upcoming.length})`;
+document.getElementById("segStanding").textContent = `Standing favorites (${ACTIVITIES.length})`;
+document.getElementById("chips").addEventListener("click", ev => {
+  const chip = ev.target.closest(".chip"); if (!chip) return;
+  if (chip.dataset.clearday) state.day = null;
+  else state.cat = state.cat === chip.dataset.cat ? null : chip.dataset.cat;
+  state.limit = 15; renderChips(); renderGrid();
+});
+let qTimer;
+document.getElementById("search").addEventListener("input", ev => {
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => { state.q = ev.target.value.trim(); state.limit = 15; renderGrid(); }, 160);
+});
+document.getElementById("moreBtn").addEventListener("click", () => { state.limit += 15; renderGrid(); });
+grid.addEventListener("click", ev => {
+  if (!ev.target.closest("[data-clearall]")) return;
+  state.cat = null; state.day = null; state.q = ""; state.limit = 15;
+  document.getElementById("search").value = "";
+  renderChips(); renderGrid();
+});
+/* card actions: calendar file and copy link */
+function icsFor(d) {
+  const stamp = s => s.replace(/-/g, "");
+  const m = [...(d.time || "").matchAll(/(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m?\.?/gi)].slice(0, 2);
+  const hm = x => { let h = +x[1] % 12; if (x[3].toLowerCase() === "p") h += 12; return pad(h) + (x[2] || "00") + "00"; };
+  const uid = `${d.date}-${(d.name || "").replace(/\W+/g, "").slice(0, 24)}@rosecityradar`;
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Rose City Radar//EN", "BEGIN:VEVENT", `UID:${uid}`,
+    `DTSTAMP:${stamp(TODAY)}T120000`];
+  if (m.length) {
+    lines.push(`DTSTART:${stamp(d.date)}T${hm(m[0])}`);
+    if (m.length === 2) lines.push(`DTEND:${stamp(d.date)}T${hm(m[1])}`);
+  } else {
+    const endD = fromISO(d.end || d.date); endD.setDate(endD.getDate() + 1);
+    lines.push(`DTSTART;VALUE=DATE:${stamp(d.date)}`, `DTEND;VALUE=DATE:${stamp(iso(endD))}`);
+  }
+  const clean = s => String(s || "").replace(/[\\;,]/g, x => "\\" + x).replace(/\n/g, "\\n");
+  lines.push(`SUMMARY:${clean(d.name)}`);
+  if (d.venue) lines.push(`LOCATION:${clean(d.venue)}`);
+  lines.push(`DESCRIPTION:${clean((d.time ? d.time + "\n" : "") + "Official page: " + d.url + "\nvia Rose City Radar")}`);
+  if (d.url) lines.push(`URL:${d.url}`);
+  lines.push("END:VEVENT", "END:VCALENDAR");
+  return lines.join("\r\n");
+}
+document.addEventListener("click", ev => {
+  const cardEl = ev.target.closest(".card[data-url]");
+  if (cardEl && !ev.target.closest("a, button") && !String(getSelection()).trim() && /^https?:/.test(cardEl.dataset.url)) {
+    window.open(cardEl.dataset.url, "_blank", "noopener"); return;
+  }
+  const ics = ev.target.closest("[data-ics]");
+  if (ics) {
+    const blob = new Blob([icsFor(ics.dataset)], { type: "text/calendar;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = (ics.dataset.name || "event").replace(/[^\w ]+/g, "").trim().slice(0, 40) + ".ics";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    return;
+  }
+  const cp = ev.target.closest("[data-copy]");
+  if (cp) {
+    const done = () => { const t = cp.textContent; cp.textContent = "Copied"; cp.classList.add("done"); setTimeout(() => { cp.textContent = t; cp.classList.remove("done"); }, 1600); };
+    const fallback = () => {
+      const ta = document.createElement("textarea"); ta.value = cp.dataset.copy; ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); done(); } catch (e) { window.open(cp.dataset.copy, "_blank", "noopener"); }
+      ta.remove();
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(cp.dataset.copy).then(done, fallback);
+    else fallback();
+  }
+});
+document.getElementById("weekendDays").addEventListener("click", ev => {
+  const more = ev.target.closest(".more-card"); if (!more) return;
+  state.mode = "events"; state.day = more.dataset.day; state.cat = null; state.limit = 15;
+  setMode("events");
+});
+document.getElementById("lanesGrid").addEventListener("click", ev => {
+  const lane = ev.target.closest(".lane"); if (!lane) return;
+  state.cat = lane.dataset.cat; state.day = null; state.limit = 15;
+  renderChips(); renderGrid();
+  document.getElementById("explore").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth" });
+});
+
+/* ================= submit an event (Block 5) ================= */
+(function submitForm() {
+  const form = document.getElementById("submitForm"); if (!form) return;
+  const $ = id => document.getElementById(id);
+  const TOWNS = ["Tyler", "Arp", "Athens", "Ben Wheeler", "Big Sandy", "Brownsboro", "Bullard", "Canton", "Chandler", "Edom", "Flint", "Frankston",
+    "Gladewater", "Hawkins", "Hideaway", "Jacksonville", "Kilgore", "Lindale", "Mineola", "Noonday", "Overton", "Troup", "Van", "Whitehouse", "Winona"];
+  $("sfTown").innerHTML = TOWNS.map(t => `<option>${t}</option>`).join("") + `<option value="other">Somewhere else nearby</option>`;
+  const picked = new Set();
+  const drawLanes = () => { $("sfLanes").innerHTML = CATS.map(c =>
+    `<button type="button" class="chip ${picked.has(c) ? "on" : ""}" data-lane="${c}"><span class="cat-dot" style="background:${CAT_COLOR[c]}"></span>${c}</button>`).join(""); };
+  drawLanes();
+  $("sfLanes").addEventListener("click", ev => { const b = ev.target.closest("[data-lane]"); if (!b) return;
+    picked.has(b.dataset.lane) ? picked.delete(b.dataset.lane) : picked.add(b.dataset.lane); drawLanes(); });
+  const far = new Date(); far.setDate(far.getDate() + 180);
+  $("sfDate").min = $("sfEnd").min = TODAY; $("sfDate").max = $("sfEnd").max = iso(far);
+  const live = typeof SUPABASE_URL === "string" && SUPABASE_URL && typeof SUPABASE_ANON_KEY === "string" && SUPABASE_ANON_KEY;
+  const msg = (text, cls) => { $("sfMsg").textContent = text; $("sfMsg").className = "sf-msg " + (cls || ""); };
+  const opened = Date.now();
+  if (!live) { $("sfBtn").disabled = true; msg("Submissions open soon."); }
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const v = id => $(id).value.trim();
+    const p = { name: v("sfName"), date: v("sfDate"), end_date: v("sfEnd"), time: v("sfTime"), cost: $("sfCost").value, venue: v("sfVenue"),
+      town: $("sfTown").value, url: v("sfUrl"), categories: [...picked], description: v("sfDesc"), newsletter: $("sfNews").checked };
+    const email = v("sfEmail");
+    if (!p.name || !p.date || !p.venue || !p.description) return msg("Please fill in the name, date, venue and a short description.", "err");
+    if (p.date < TODAY || p.date > iso(far)) return msg("The date needs to be between today and six months out.", "err");
+    if (p.end_date && p.end_date < p.date) return msg("The last day can't be before the first.", "err");
+    if (!/^https?:\/\/\S+\.\S+/.test(p.url)) return msg("Add the official link, starting with https://", "err");
+    if (!p.categories.length) return msg("Pick at least one lane.", "err");
+    if (!/^\S+@\S+\.\S+$/.test(email)) return msg("Add an email we can reach you at. It is never shown.", "err");
+    // bots fill the hidden field or submit instantly: thank them and send nothing
+    if ($("sfWebsite").value || Date.now() - opened < 4000) { form.reset(); picked.clear(); drawLanes(); return msg("Got it. Thank you.", "ok"); }
+    $("sfBtn").disabled = true; msg("Sending…");
+    try {
+      const r = await fetch(SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/submissions", {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ city_id: CITY.id || "tyler-tx", payload: p, submitter_email: email })
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        const why = /too many/.test(e.message || "") ? "That's the limit from one email for today. Try again tomorrow."
+          : /paused/.test(e.message || "") ? "Submissions are paused for today. Please try again tomorrow."
+          : "That didn't go through. Please try again in a minute.";
+        $("sfBtn").disabled = false; return msg(why, "err");
+      }
+      form.reset(); picked.clear(); drawLanes(); $("sfBtn").disabled = false;
+      msg("Got it. If the official page confirms it, it will be on the radar within a day.", "ok");
+    } catch (e) { $("sfBtn").disabled = false; msg("That didn't go through. Check your connection and try again.", "err"); }
+  });
+})();
+
+document.getElementById("aboutFacts").innerHTML = [
+  [SOURCES.length, "LOCAL SOURCES READ"], [upcoming.length.toLocaleString(), "EVENTS ON THE CALENDAR"],
+  [ACTIVITIES.length, "STANDING FAVORITES"], [typeof EVENTS_HARVESTED !== "undefined" ? EVENTS_HARVESTED : "", "LAST SWEEP"],
+].map(([n, l]) => `<div><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+document.getElementById("footData").textContent =
+  `${ACTIVITIES.length} standing activities compiled ${CITY.compiled} · ${upcoming.length} upcoming events, last sweep ${typeof EVENTS_HARVESTED !== "undefined" ? EVENTS_HARVESTED : ""} · ${SOURCES.length} local sources read.`;
+
+
+/* ================= radar canvas ================= */
+// Real geography: Tyler at the center, outer ring = 45 miles, towns at their true bearing and
+// distance, lakes as approximate outlines. The sweep pings each town as it passes.
+function radar() {
+  const RAD = getComputedStyle(document.documentElement).getPropertyValue("--radar").trim() || "123,224,163";
+  const cv = document.getElementById("radar");
+  const ctx = cv.getContext("2d");
+  const DPR = Math.min(devicePixelRatio || 1, 2);
+  const LAT0 = 32.3513, LON0 = -95.3011, REACH = 45, MI = 69, MIX = 69 * Math.cos(LAT0 * Math.PI / 180);
+  const TOWNS = [
+    ["Lindale", 32.5157, -95.4094, 1], ["Mineola", 32.6632, -95.4883, 1], ["Hawkins", 32.5885, -95.2041],
+    ["Big Sandy", 32.5843, -95.1091], ["Gladewater", 32.5365, -94.9427], ["Kilgore", 32.3862, -94.8755, 1],
+    ["Overton", 32.2746, -94.9733], ["Arp", 32.2271, -95.0552], ["Troup", 32.1446, -95.1205],
+    ["Whitehouse", 32.2232, -95.2255, 1], ["Bullard", 32.1399, -95.3202, 1], ["Flint", 32.2043, -95.3691],
+    ["Noonday", 32.2393, -95.3977], ["Jacksonville", 31.9638, -95.2705, 1], ["Frankston", 32.0527, -95.5061],
+    ["Chandler", 32.3074, -95.4799], ["Brownsboro", 32.3029, -95.6141], ["Edom", 32.3713, -95.6166],
+    ["Van", 32.5257, -95.6366], ["Grand Saline", 32.6740, -95.7094], ["Winona", 32.4921, -95.1716],
+    ["New Chapel Hill", 32.3010, -95.1686], ["Canton", 32.5565, -95.8633, 1], ["Athens", 32.2049, -95.8555, 1],
+    ["Palestine", 31.7621, -95.6308, 1], ["Longview", 32.5007, -94.7405, 1], ["Henderson", 32.1532, -94.7994, 1],
+    ["Rusk", 31.7960, -95.1502], ["Quitman", 32.7960, -95.4510], ["Emory", 32.8743, -95.7655]
+  ];
+  const LAKES = [
+    ["Lake Palestine", [[32.33,-95.49],[32.30,-95.45],[32.26,-95.44],[32.22,-95.45],[32.18,-95.43],[32.14,-95.44],[32.10,-95.46],[32.07,-95.45],[32.06,-95.49],[32.10,-95.50],[32.14,-95.49],[32.18,-95.48],[32.22,-95.50],[32.26,-95.49],[32.29,-95.52],[32.32,-95.52]]],
+    ["Lake Tyler", [[32.21,-95.19],[32.20,-95.15],[32.18,-95.12],[32.17,-95.08],[32.15,-95.09],[32.16,-95.13],[32.17,-95.17],[32.19,-95.20]]],
+    ["Lake Fork", [[32.90,-95.62],[32.88,-95.56],[32.84,-95.52],[32.80,-95.53],[32.77,-95.55],[32.78,-95.59],[32.80,-95.62],[32.84,-95.63],[32.87,-95.66]]],
+    ["Lake Tawakoni", [[32.93,-96.03],[32.91,-95.95],[32.87,-95.91],[32.83,-95.92],[32.80,-95.97],[32.82,-96.03],[32.86,-96.06],[32.90,-96.07]]],
+    ["Lake Jacksonville", [[31.96,-95.32],[31.94,-95.30],[31.92,-95.31],[31.93,-95.34]]]
+  ];
+  let W, H, CX, CY, R, K, towns = [], lakes = [];
+  const proj = (lat, lon) => ({ x: CX + (lon - LON0) * MIX * K, y: CY - (lat - LAT0) * MI * K });
+  function size() {
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (W > 860) { CX = W * .74; CY = H * .5; R = Math.min(W * .3, H * .46); }
+    else { CX = W * .5; CY = H * .42; R = Math.min(W, H) * .5; }
+    K = R / REACH;
+    towns = TOWNS.map(([name, lat, lon, big]) => {
+      const p = proj(lat, lon), dx = p.x - CX, dy = p.y - CY, dist = Math.hypot(dx, dy);
+      return { name, x: p.x, y: p.y, a: Math.atan2(dy, dx), inside: dist <= R, big: !!big };
+    });
+    lakes = LAKES.map(([name, pts]) => {
+      const poly = pts.map(([la, lo]) => proj(la, lo));
+      const c = poly.reduce((m, q) => ({ x: m.x + q.x / poly.length, y: m.y + q.y / poly.length }), { x: 0, y: 0 });
+      return { name, poly, cx: c.x, cy: c.y };
+    });
+  }
+  const TAU = Math.PI * 2;
+  let ang = 0, last = 0, on = true;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const small = W <= 860 || R < 200, labelX = W > 860 ? W * .56 : 0; // keep labels clear of the headline column
+    // lakes
+    for (const l of lakes) {
+      ctx.beginPath(); l.poly.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.closePath();
+      ctx.fillStyle = "rgba(118,176,210,.13)"; ctx.fill();
+      ctx.strokeStyle = "rgba(140,196,228,.28)"; ctx.lineWidth = 1; ctx.stroke();
+      if (!small && l.cx > labelX) {
+        ctx.fillStyle = "rgba(160,206,232,.5)"; ctx.font = "italic 10px Georgia, serif"; ctx.textAlign = "center";
+        ctx.fillText(l.name, l.cx, l.cy + 3);
+      }
+    }
+    // rings + axes
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      ctx.strokeStyle = `rgba(243,240,233,${i === 3 ? .1 : .055})`;
+      ctx.beginPath(); ctx.arc(CX, CY, R * i / 3, 0, TAU); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(243,240,233,.045)";
+    ctx.beginPath(); ctx.moveTo(CX - R, CY); ctx.lineTo(CX + R, CY);
+    ctx.moveTo(CX, CY - R); ctx.lineTo(CX, CY + R); ctx.stroke();
+    // sweep
+    for (let k = 0; k < 70; k++) {
+      const a = ang - k * .013, al = (1 - k / 70) * .22;
+      ctx.strokeStyle = `rgba(${RAD},${al})`;
+      ctx.beginPath(); ctx.moveTo(CX, CY);
+      ctx.lineTo(CX + Math.cos(a) * R, CY + Math.sin(a) * R); ctx.stroke();
+    }
+    // towns: dot, ping ring as the sweep passes, label
+    ctx.font = "600 10px system-ui, sans-serif"; ctx.textAlign = "left";
+    for (const t of towns) {
+      let d = (ang - t.a) % TAU; if (d < 0) d += TAU;
+      const glow = t.inside ? Math.max(0, 1 - d / 1.1) : 0;
+      if (t.inside && d < .9) {
+        const p = d / .9;
+        ctx.strokeStyle = `rgba(${RAD},${(1 - p) * .55})`; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(t.x, t.y, 3 + p * 16, 0, TAU); ctx.stroke();
+      }
+      ctx.fillStyle = t.inside ? `rgba(${RAD},${.3 + .7 * glow})` : "rgba(243,240,233,.22)";
+      ctx.beginPath(); ctx.arc(t.x, t.y, 1.6 + glow * 1.6, 0, TAU); ctx.fill();
+      if (!small && t.x > labelX) {
+        ctx.fillStyle = `rgba(243,240,233,${.28 + .5 * glow})`;
+        ctx.fillText(t.name, t.x + 5, t.y + 3.5);
+      }
+    }
+    ctx.fillStyle = "rgba(${RAD},.95)";
+    ctx.beginPath(); ctx.arc(CX, CY, 2.8, 0, TAU); ctx.fill();
+    if (!small) { ctx.fillStyle = "rgba(243,240,233,.7)"; ctx.fillText("Tyler", CX + 6, CY + 3.5); }
+  }
+  function loop(t) {
+    if (on) { ang += Math.min(t - last, 50) * .00042; draw(); }
+    last = t; requestAnimationFrame(loop);
+  }
+  size(); addEventListener("resize", size);
+  new IntersectionObserver(es => { on = es[0].isIntersecting; }, { threshold: 0 }).observe(cv);
+  if (REDUCED) { ang = 5.2; draw(); } else requestAnimationFrame(loop);
+}
+radar();
+
+/* ================= scroll chrome ================= */
+const nav = document.getElementById("nav");
+const heroBg = document.getElementById("heroBg");
+let ticking = false;
+addEventListener("scroll", () => {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => {
+    nav.classList.toggle("scrolled", scrollY > 24);
+    if (!REDUCED && scrollY < innerHeight * 1.2) heroBg.style.transform = `translateY(${scrollY * .22}px)`;
+    ticking = false;
+  });
+}, { passive: true });
+
+/* ================= reveals ================= */
+const observer = new IntersectionObserver(entries => {
+  for (const en of entries) if (en.isIntersecting) { en.target.classList.add("in"); observer.unobserve(en.target); }
+}, { threshold: .02, rootMargin: "0px 0px 18% 0px" });
+document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
+
+/* initial explore render */
+renderChips(); renderGrid();
+
+/* ================= map (Block 4) ================= */
+(function mountMap() {
+  const panel = document.querySelector(".map-panel");
+  const chipsEl = document.getElementById("mapChips");
+  const cityEl = document.getElementById("mapCity");
+  const countEl = document.getElementById("mapCount");
+  const cities = (typeof CITIES !== "undefined" && CITIES.length) ? CITIES
+    : [{ id: CITY.id || "tyler-tx", name: CITY.name, lat: 32.3513, lng: -95.3011, radius: CITY.radius || 35 }];
+  cityEl.innerHTML = cities.map(c => `<option value="${esc(c.id)}">${esc(c.name)} · ${c.radius || 35} mi</option>`).join("")
+    + (cities.length === 1 ? `<option disabled>More cities coming</option>` : "");
+  let mapLane = null, mapKind = null, api = null;
+  const kindsEl = document.getElementById("mapKinds");
+  const kindCount = {};
+  upcoming.forEach(e => e.kinds.forEach(k => { kindCount[k] = (kindCount[k] || 0) + 1; }));
+  function drawChips() {
+    chipsEl.innerHTML = CATS.map(c =>
+      `<button class="chip ${mapLane === c ? "on" : ""}" data-lane="${c}" type="button">
+         <span class="cat-dot" style="background:${CAT_COLOR[c]}"></span>${c}</button>`).join("");
+    kindsEl.innerHTML = KINDS.filter(k => kindCount[k[0]]).map(k =>
+      `<button class="chip ${mapKind === k[0] ? "on" : ""}" data-kind="${k[0]}" type="button">${k[1]}</button>`).join("");
+  }
+  drawChips();
+  const onChip = ev => {
+    const b = ev.target.closest("[data-lane],[data-kind]"); if (!b) return;
+    if (b.dataset.lane) mapLane = mapLane === b.dataset.lane ? null : b.dataset.lane;
+    else mapKind = mapKind === b.dataset.kind ? null : b.dataset.kind;
+    drawChips(); if (api) api.setFilter(mapLane, mapKind);
+  };
+  chipsEl.addEventListener("click", onChip);
+  kindsEl.addEventListener("click", onChip);
+  cityEl.addEventListener("change", () => { if (api) api.setCity(cities.find(c => c.id === cityEl.value)); });
+  const start = () => {
+    if (!window.RCR_MAP || typeof maplibregl === "undefined") { panel.classList.add("offline"); return; }
+    if (!navigator.onLine) { panel.classList.add("offline"); return; }
+    try {
+      api = window.RCR_MAP.init({
+        el: "mapCanvas", city: cities[0], activities: ACTIVITIES, events: upcoming,
+        geocode: typeof GEOCODE !== "undefined" ? GEOCODE : [], weekend: WEEKEND, md, reduced: REDUCED,
+        onCount: s => {
+          const kindName = s.kind ? (KINDS.find(k => k[0] === s.kind) || [])[1] : "";
+          countEl.textContent = `${s.places} places · ${s.events} events` + (s.lane ? ` in ${s.lane}` : "") + (kindName ? ` · ${kindName.toLowerCase()}` : "") +
+            `. Numbers are groups: tap to split them, tap a pin for what's on there.`;
+        }
+      });
+      api.map.on("error", e => { if (e && e.error && /Failed to fetch|NetworkError/i.test(String(e.error.message))) panel.classList.add("offline"); });
+    } catch (e) { console.error("map failed", e); panel.classList.add("offline"); }
+  };
+  if (typeof maplibregl !== "undefined") start();
+  else window.addEventListener("load", start, { once: true });
+})();
+/* deep links: the data boot injects content above, so re-aim the anchor after render */
+try { if (location.hash) { const t = document.querySelector(location.hash); if (t) t.scrollIntoView(); } } catch (e) {}
+};
+</script>
+</body>
+</html>
